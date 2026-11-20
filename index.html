@@ -214,7 +214,7 @@
       const tbodyEl = document.getElementById('table-body');
 
       try {
-        const response = await fetch(CSV_URL);
+        const response = await fetch(sheetURL);
         if (!response.ok) throw new Error('HTTP ' + response.status);
 
         const csvText = await response.text();

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GG Museum Chat</title>
+
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css?family=JetBrains+Mono">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      background-color: #0b0e11;
+      color: #b0b8c1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1000px;
+      background-color: #111519;
+      border: 1px solid #232a31;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    header {
+      background-color: #161b20;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid #00e5ff;
+    }
+
+    header h1 {
+      color: #ffffff;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      color: #00e5ff;
+      font-weight: 600;
+      padding: 14px 16px;
+      border-bottom: 2px solid #00e5ff;
+      background-color: #13181d;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #232a31;
+      white-space: nowrap;
+    }
+
+    td:first-child {
+      color: #ffffff;
+    }
+
+    tr:hover {
+      background-color: #181f26;
+    }
+
+    th:last-child,
+    td:last-child {
+      text-align: center;
+    }
+
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #b0b8c1;
+      border-radius: 3px;
+      background-color: transparent;
+      cursor: pointer;
+      position: relative;
+      vertical-align: middle;
+      transition: all 0.15s ease;
+    }
+
+    input[type="checkbox"]:hover {
+      border-color: #00e5ff;
+    }
+
+    input[type="checkbox"]:checked {
+      background-color: #00e5ff;
+      border-color: #00e5ff;
+    }
+
+    input[type="checkbox"]:checked::after {
+      content: '✔';
+      color: #0b0e11;
+      font-size: 14px;
+      font-weight: bold;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #status {
+      padding: 20px;
+      text-align: center;
+      color: #00e5ff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>GG Museum Chat</h1>
+    </header>
+
+    <div id="status">Lade Tabelle...</div>
+
+    <div class="table-wrapper">
+      <table id="data-table" style="display: none;">
+        <thead>
+          <tr>
+            <th>Loco</th>
+            <th>Facebook Name</th>
+            <th>Portal Name</th>
+            <th>Ingame Name</th>
+            <th>Check</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'gg_museum_chat_checks';
+    const DATA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSqIICAOQf8EK1F-pBM9W_-4cLKAiQKRJDlHn6WbeS9M8BOsfJsRIpTauHR-neyMxEKD2bqIgdMCvb-/pub?output=xlsx';
+
+    function getSavedChecks() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    }
+
+    function saveCheckState(id, isChecked) {
+      const saved = getSavedChecks();
+      saved[id] = isChecked;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    }
+
+    window.google = {
+      visualization: {
+        Query: {
+          setResponse: function(response) {
+            const statusEl = document.getElementById('status');
+            const tableEl = document.getElementById('data-table');
+            const tbodyEl = document.getElementById('table-body');
+
+            if (!response || response.status === 'error') {
+              statusEl.textContent = 'Fehler beim Auslesen der Google-Tabelle.';
+              statusEl.style.color = '#ff5252';
+              return;
+            }
+
+            const rows = response.table.rows;
+            const savedChecks = getSavedChecks();
+            tbodyEl.innerHTML = '';
+
+            rows.forEach((row) => {
+              const cells = row.c;
+              if (!cells || !cells.at(0) || !cells.at(0).v) return;
+
+              const loco = String(cells.at(0).v).trim();
+              if (loco === 'GG Museum Chat' || loco === 'Loco') return;
+
+              const fbName = (cells.at(1) && cells.at(1).v !== null) ? String(cells.at(1).v) : '';
+              const portalName = (cells.at(2) && cells.at(2).v !== null) ? String(cells.at(2).v) : '';
+              const ingameName = (cells.at(3) && cells.at(3).v !== null) ? String(cells.at(3).v) : '';
+              const sheetCheckValue = (cells.at(4) && cells.at(4).v !== null) ? cells.at(4).v : false;
+
+              let isChecked = false;
+              if (Object.prototype.hasOwnProperty.call(savedChecks, loco)) {
+                isChecked = savedChecks[loco];
+              } else {
+                isChecked = (sheetCheckValue === true || String(sheetCheckValue).toLowerCase() === 'true');
+              }
+
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td>' + loco + '</td>' +
+                '<td>' + fbName + '</td>' +
+                '<td>' + portalName + '</td>' +
+                '<td>' + ingameName + '</td>' +
+                '<td><input type="checkbox" data-id="' + loco + '"' + (isChecked ? ' checked' : '') + '></td>';
+
+              const checkbox = tr.querySelector('input[type="checkbox"]');
+              checkbox.addEventListener('change', (e) => {
+                saveCheckState(loco, e.target.checked);
+              });
+
+              tbodyEl.appendChild(tr);
+            });
+
+            statusEl.style.display = 'none';
+            tableEl.style.display = 'table';
+          }
+        }
+      }
+    };
+
+    function loadSheetViaJSONP() {
+      const script = document.createElement('script');
+      script.src = DATA_URL;
+      script.onerror = function() {
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = 'Skript konnte nicht von Google geladen werden.';
+        statusEl.style.color = '#ff5252';
+      };
+      document.body.appendChild(script);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSheetViaJSONP);
+  </script>
+
+</body>
+</html>
+
